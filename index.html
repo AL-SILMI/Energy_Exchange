@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Exchange - P2P Energy Trading</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0D1117;
+        }
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+        }
+        .content-container {
+            position: relative; z-index: 1;
+        }
+        .modal-backdrop {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); z-index: 40;
+        }
+        .modal {
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); z-index: 50;
+        }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -45%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+
+        }
+        .glassmorphism {
+            background: rgba(13, 17, 23, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+
+    <!-- 3D Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Main Container -->
+    <div id="app" class="min-h-screen content-container">
+        
+        <!-- Landing Page Section -->
+        <div id="landing-page" class="min-h-screen flex items-center justify-center p-4 lg:p-8">
+            <div class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <!-- Left Column: Info -->
+                <div class="text-center lg:text-left">
+                    <h1 class="text-5xl md:text-7xl font-extrabold mb-4 text-white leading-tight">
+                        <span class="text-cyan-400">Power</span> Shared.
+                        <br>
+                        <span class="text-green-400">Power</span> Secured.
+                    </h1>
+                    <p class="text-lg text-gray-300 mb-8 max-w-xl mx-auto lg:mx-0">
+                        Join the future of energy trading with Energy Exchange. Connect, trade, and optimize your energy consumption with cutting-edge technology.
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="glassmorphism p-4 rounded-xl text-center"><i data-lucide="zap" class="h-10 w-10 mx-auto text-cyan-400 mb-2"></i><h3 class="font-bold text-white">Energy Trading</h3><p class="text-sm text-gray-400">Trade surplus energy with your neighbors in real-time.</p></div>
+                        <div class="glassmorphism p-4 rounded-xl text-center"><i data-lucide="shield-check" class="h-10 w-10 mx-auto text-green-400 mb-2"></i><h3 class="font-bold text-white">Secure Transactions</h3><p class="text-sm text-gray-400">Blockchain-secured for trust and transparency.</p></div>
+                        <div class="glassmorphism p-4 rounded-xl text-center"><i data-lucide="users" class="h-10 w-10 mx-auto text-cyan-400 mb-2"></i><h3 class="font-bold text-white">Community Network</h3><p class="text-sm text-gray-400">Join a thriving community of green energy users.</p></div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Login/Signup Form -->
+                <div class="w-full max-w-md mx-auto">
+                    <div class="glassmorphism rounded-2xl p-8">
+                        <div class="flex border-b border-gray-700 mb-6">
+                            <button id="login-tab" onclick="switchAuthTab('login')" class="w-1/2 py-3 font-semibold text-gray-400 focus:outline-none">Login</button>
+                            <button id="signup-tab" onclick="switchAuthTab('signup')" class="w-1/2 py-3 font-semibold text-white border-b-2 border-cyan-400 focus:outline-none">Sign Up</button>
+                        </div>
+                        <form onsubmit="event.preventDefault(); handleAuth();">
+                            <div id="name-field" class="mb-4"><label for="name" class="block text-gray-400 text-sm font-bold mb-2">Full Name</label><input type="text" id="name" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400" placeholder="Your Name"></div>
+                            <div class="mb-4"><label for="email" class="block text-gray-400 text-sm font-bold mb-2">Email Address</label><input type="email" id="email" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400" required placeholder="you@example.com"></div>
+                            <div class="mb-6"><label for="role" class="block text-gray-400 text-sm font-bold mb-2">I am a...</label><select id="role" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400"><option value="consumer">Consumer (I want to buy energy)</option><option value="producer">Producer (I want to sell energy)</option></select></div>
+                            <button id="auth-button" type="submit" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300">Create Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application Dashboard (Hidden by default) -->
+        <div id="dashboard" class="hidden bg-gray-900">
+            <header class="bg-gray-800/50 backdrop-blur-sm sticky top-0 z-30 border-b border-gray-700">
+                <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center justify-between h-16">
+                        <div class="flex items-center"><i data-lucide="zap" class="h-8 w-8 text-cyan-400"></i><span class="ml-2 text-2xl font-bold text-white">Energy Exchange</span></div>
+                        <div class="flex items-center space-x-4">
+                            <span id="welcome-message" class="hidden sm:block font-medium text-gray-300">Welcome, User!</span>
+                            <button onclick="showMyEnergyView()" id="my-energy-btn" class="hidden bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition duration-300"><i data-lucide="battery-charging" class="h-5 w-5 mr-2"></i> My Energy</button>
+                            <button onclick="showPostEnergyModal()" id="post-energy-btn" class="hidden bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition duration-300"><i data-lucide="plus-circle" class="h-5 w-5 mr-2"></i> Post Surplus</button>
+                            <button onclick="logout()" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">Logout</button>
+                        </div>
+                    </div>
+                </nav>
+            </header>
+            <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+                <!-- Marketplace View -->
+                <div id="marketplace-view">
+                    <div class="glassmorphism p-6 rounded-xl mb-6"><h1 class="text-3xl font-bold mb-2 text-white">Community Energy Marketplace</h1><p class="text-gray-400">Find local, clean energy sources or sell your surplus power.</p></div>
+                    
+                    <!-- New: Filter Bar -->
+                    <div class="glassmorphism p-4 rounded-xl mb-6 flex flex-col sm:flex-row gap-4 items-center">
+                        <div class="flex-grow w-full sm:w-auto"><label for="filter-type" class="block text-sm font-medium text-gray-400 mb-1">Energy Type</label><select id="filter-type" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400"><option value="all">All Types</option><option value="Solar">Solar</option><option value="Wind">Wind</option><option value="Other">Other</option></select></div>
+                        <div class="flex-grow w-full sm:w-auto"><label for="filter-source" class="block text-sm font-medium text-gray-400 mb-1">Source</label><select id="filter-source" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400"><option value="all">All Sources</option><option value="Renewable">Renewable</option><option value="Non-Renewable">Non-Renewable</option></select></div>
+                        <div class="w-full sm:w-auto pt-2 sm:pt-6"><button onclick="applyFilters()" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Filter</button></div>
+                    </div>
+
+                    <div id="list-view"><div id="energy-listings" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div></div>
+                </div>
+
+                <!-- "My Energy" View -->
+                <div id="my-energy-view" class="hidden">
+                    <div class="glassmorphism p-6 rounded-xl mb-6 flex justify-between items-center">
+                        <div><h1 class="text-3xl font-bold mb-2 text-white">My Purchased Energy</h1><p class="text-gray-400">A history of all your energy transactions.</p></div>
+                        <button onclick="showMarketplaceView()" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition duration-300"><i data-lucide="arrow-left" class="h-5 w-5 mr-2"></i> Back to Marketplace</button>
+                    </div>
+                    <div id="my-energy-listings" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="post-energy-modal-backdrop" class="modal-backdrop" onclick="closeModal('post-energy-modal')"></div>
+    <div id="post-energy-modal" class="modal glassmorphism rounded-xl w-full max-w-lg p-8 fade-in">
+        <h2 class="text-3xl font-bold text-center mb-6 text-white">Post Your Surplus Energy</h2>
+        <form onsubmit="event.preventDefault(); postEnergy();">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div><label for="energy-type" class="block text-gray-400 font-semibold mb-2">Energy Type</label><select id="energy-type" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400"><option value="Solar">Solar</option><option value="Wind">Wind</option><option value="Other">Other</option></select></div>
+                <div><label for="amount" class="block text-gray-400 font-semibold mb-2">Amount (kWh)</label><input type="number" id="amount" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400" required></div>
+                <!-- New Fields -->
+                <div><label for="source" class="block text-gray-400 font-semibold mb-2">Source</label><select id="source" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400"><option value="Renewable">Renewable</option><option value="Non-Renewable">Non-Renewable</option></select></div>
+                <div><label for="duration" class="block text-gray-400 font-semibold mb-2">Duration (Hours)</label><input type="number" id="duration" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400" required></div>
+            </div>
+            <div class="mb-6"><label for="price" class="block text-gray-400 font-semibold mb-2">Price ($ / kWh)</label><input type="number" step="0.01" id="price" class="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-cyan-400" required></div>
+            <div class="flex justify-end space-x-4"><button type="button" onclick="closeModal('post-energy-modal')" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Cancel</button><button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Post Offer</button></div>
+        </form>
+    </div>
+
+    <div id="details-modal-backdrop" class="modal-backdrop" onclick="closeModal('details-modal')"></div>
+    <div id="details-modal" class="modal glassmorphism rounded-xl w-full max-w-lg p-8 fade-in">
+        <div id="details-modal-content"></div>
+        <div class="flex justify-end mt-6 space-x-4">
+            <button type="button" onclick="closeModal('details-modal')" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Close</button>
+            <button id="request-energy-btn" type="button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Request Energy</button>
+            <button id="delete-energy-btn" type="button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">Delete Listing</button>
+        </div>
+    </div>
+
+    <div id="message-modal-backdrop" class="modal-backdrop" onclick="closeModal('message-modal')"></div>
+    <div id="message-modal" class="modal glassmorphism rounded-xl w-full max-w-sm p-8 fade-in text-center">
+        <div id="message-icon-container" class="flex justify-center items-center mx-auto rounded-full h-16 w-16 mb-4"></div>
+        <h3 id="message-title" class="text-2xl font-bold mb-2 text-white"></h3>
+        <p id="message-text" class="text-gray-300 mb-6"></p>
+        <button id="message-ok-btn" onclick="closeModal('message-modal')" class="w-full text-white font-bold py-3 px-4 rounded-lg transition duration-300">OK</button>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const API_BASE_URL = 'http://192.168.1.8:5000'; // <-- UPDATED WITH YOUR IP
+
+        // --- STATE MANAGEMENT ---
+        let currentUser = null;
+        let energyData = [];
+
+        // --- UI LOGIC ---
+        lucide.createIcons();
+
+        function switchAuthTab(tab) {
+            const loginTab = document.getElementById('login-tab');
+            const signupTab = document.getElementById('signup-tab');
+            const nameField = document.getElementById('name-field');
+            const authButton = document.getElementById('auth-button');
+
+            if (tab === 'login') {
+                loginTab.classList.add('text-white', 'border-b-2', 'border-cyan-400');
+                loginTab.classList.remove('text-gray-400');
+                signupTab.classList.remove('text-white', 'border-b-2', 'border-cyan-400');
+                signupTab.classList.add('text-gray-400');
+                nameField.style.display = 'none';
+                authButton.innerText = 'Login';
+            } else {
+                signupTab.classList.add('text-white', 'border-b-2', 'border-cyan-400');
+                signupTab.classList.remove('text-gray-400');
+                loginTab.classList.remove('text-white', 'border-b-2', 'border-cyan-400');
+                loginTab.classList.add('text-gray-400');
+                nameField.style.display = 'block';
+                authButton.innerText = 'Create Account';
+            }
+        }
+
+        function logout() {
+             currentUser = null;
+             document.getElementById('landing-page').classList.remove('hidden');
+             document.getElementById('dashboard').classList.add('hidden');
+        }
+
+        function showMyEnergyView() {
+            document.getElementById('marketplace-view').classList.add('hidden');
+            document.getElementById('my-energy-view').classList.remove('hidden');
+            fetchMyEnergy();
+        }
+
+        function showMarketplaceView() {
+            document.getElementById('my-energy-view').classList.add('hidden');
+            document.getElementById('marketplace-view').classList.remove('hidden');
+        }
+
+        function showDetails(id) {
+            const item = energyData.find(d => d.id === id);
+            if (!item) return;
+            
+            const icon = item.type.toLowerCase() === 'solar' ? 'sun' : 'wind';
+            const color = item.type.toLowerCase() === 'solar' ? 'yellow-400' : 'blue-400';
+
+            const content = `
+                <div class="flex items-center mb-6">
+                     <div class="p-3 rounded-full bg-gray-800"><i data-lucide="${icon}" class="h-10 w-10 text-${color}"></i></div>
+                    <div class="ml-4"><h2 class="text-3xl font-bold text-white">${item.producer}</h2><p class="text-gray-400">${item.location}</p></div>
+                </div>
+                <div class="space-y-4 text-lg">
+                    <div class="flex justify-between border-b border-gray-700 pb-2"><span class="font-semibold text-gray-300">Type:</span><span>${item.type}</span></div>
+                    <div class="flex justify-between border-b border-gray-700 pb-2"><span class="font-semibold text-gray-300">Amount:</span><span>${item.amount} kWh</span></div>
+                    <div class="flex justify-between border-b border-gray-700 pb-2"><span class="font-semibold text-gray-300">Source:</span><span class="font-bold text-green-400">${item.source}</span></div>
+                    <div class="flex justify-between border-b border-gray-700 pb-2"><span class="font-semibold text-gray-300">Duration:</span><span>${item.duration} Hours</span></div>
+                    <div class="flex justify-between"><span class="font-semibold text-gray-300">Price:</span><span class="font-bold text-green-400">$${item.price.toFixed(2)}</span></div>
+                </div>
+            `;
+            document.getElementById('details-modal-content').innerHTML = content;
+            lucide.createIcons();
+            
+            const requestBtn = document.getElementById('request-energy-btn');
+            const deleteBtn = document.getElementById('delete-energy-btn');
+            
+            if (currentUser && currentUser.role === 'consumer') {
+                requestBtn.classList.remove('hidden');
+                deleteBtn.classList.add('hidden');
+                requestBtn.onclick = () => buyEnergy(item.id);
+            } else if (currentUser && currentUser.role === 'producer' && item.producer === currentUser.email.split('@')[0]) {
+                deleteBtn.classList.remove('hidden');
+                requestBtn.classList.add('hidden');
+                deleteBtn.onclick = () => deleteEnergy(item.id);
+            } else {
+                requestBtn.classList.add('hidden');
+                deleteBtn.classList.add('hidden');
+            }
+
+            document.getElementById('details-modal-backdrop').style.display = 'block';
+            document.getElementById('details-modal').style.display = 'block';
+        }
+
+        function showPostEnergyModal() {
+            document.getElementById('post-energy-modal-backdrop').style.display = 'block';
+            document.getElementById('post-energy-modal').style.display = 'block';
+        }
+
+        function showMessage(title, message, type = 'success') {
+            document.getElementById('message-title').innerText = title;
+            document.getElementById('message-text').innerText = message;
+            const iconContainer = document.getElementById('message-icon-container');
+            const okBtn = document.getElementById('message-ok-btn');
+            if (type === 'success') {
+                iconContainer.innerHTML = `<i data-lucide="check-circle" class="h-10 w-10 text-green-500"></i>`;
+                iconContainer.className = 'flex justify-center items-center mx-auto rounded-full h-16 w-16 mb-4 bg-green-500/10';
+                okBtn.className = 'w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300';
+            } else {
+                iconContainer.innerHTML = `<i data-lucide="alert-circle" class="h-10 w-10 text-red-500"></i>`;
+                iconContainer.className = 'flex justify-center items-center mx-auto rounded-full h-16 w-16 mb-4 bg-red-500/10';
+                okBtn.className = 'w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300';
+            }
+            lucide.createIcons();
+            document.getElementById('message-modal-backdrop').style.display = 'block';
+            document.getElementById('message-modal').style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            const backdrop = document.getElementById(`${modalId}-backdrop`);
+            if (backdrop) backdrop.style.display = 'none';
+        }
+
+        // --- API CALLS ---
+        async function handleAuth() {
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const role = document.getElementById('role').value;
+            if (!email) { showMessage('Error', 'Please enter an email address.', 'error'); return; }
+            const isSigningUp = document.getElementById('name-field').style.display !== 'none';
+            if (isSigningUp && !name) { showMessage('Error', 'Please enter your full name.', 'error'); return; }
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, role, name })
+                });
+                const data = await response.json();
+                if (!response.ok) { throw new Error(data.error || 'Failed to login.'); }
+                currentUser = data.user;
+                document.getElementById('landing-page').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                const welcomeName = currentUser.name || currentUser.email.split('@')[0];
+                document.getElementById('welcome-message').innerText = `Welcome, ${welcomeName}!`;
+                if (currentUser.role === 'producer') { 
+                    document.getElementById('post-energy-btn').classList.remove('hidden');
+                    document.getElementById('my-energy-btn').classList.add('hidden');
+                } else { 
+                    document.getElementById('post-energy-btn').classList.add('hidden');
+                    document.getElementById('my-energy-btn').classList.remove('hidden');
+                }
+                await populateListings();
+            } catch (error) { console.error('Login Error:', error); showMessage('Login Failed', error.message, 'error'); }
+        }
+
+        async function populateListings(type = 'all', source = 'all') {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/listings?type=${type}&source=${source}`);
+                if (!response.ok) throw new Error('Could not fetch listings.');
+                energyData = await response.json();
+                const listingsContainer = document.getElementById('energy-listings');
+                listingsContainer.innerHTML = '';
+                if (energyData.length === 0) { listingsContainer.innerHTML = '<p class="text-gray-400 col-span-3 text-center">No energy listings match your filters.</p>'; return; }
+                energyData.forEach(item => {
+                    const icon = item.type.toLowerCase() === 'solar' ? 'sun' : 'wind';
+                    const color = item.type.toLowerCase() === 'solar' ? 'yellow-400' : 'blue-400';
+                    const card = `<div class="glassmorphism rounded-xl p-6 hover:-translate-y-1 transition-transform cursor-pointer" onclick="showDetails(${item.id})"><div class="flex items-center mb-4"><div class="p-3 rounded-full bg-gray-800"><i data-lucide="${icon}" class="h-8 w-8 text-${color}"></i></div><div class="ml-4"><h3 class="text-xl font-bold text-white">${item.producer}</h3><p class="text-sm text-gray-400">${item.location}</p></div></div><div><div class="flex justify-between items-baseline mb-1"><span class="text-gray-400">Available:</span><span class="text-2xl font-bold text-white">${item.amount} <span class="text-base font-normal text-gray-400">kWh</span></span></div><div class="flex justify-between items-baseline"><span class="text-gray-400">Source:</span><span class="font-bold text-green-400">${item.source}</span></div></div></div>`;
+                    listingsContainer.innerHTML += card;
+                });
+                lucide.createIcons();
+            } catch (error) { console.error('Fetch Listings Error:', error); showMessage('Error', 'Could not load energy listings.', 'error'); }
+        }
+
+        function applyFilters() {
+            const type = document.getElementById('filter-type').value;
+            const source = document.getElementById('filter-source').value;
+            populateListings(type, source);
+        }
+
+        async function postEnergy() {
+            const type = document.getElementById('energy-type').value;
+            const amount = document.getElementById('amount').value;
+            const price = document.getElementById('price').value;
+            const source = document.getElementById('source').value;
+            const duration = document.getElementById('duration').value;
+            if (!amount || !price || !duration) { showMessage('Error', 'Please fill out all fields.', 'error'); return; }
+            const payload = { type, amount, price, source, duration, user_email: currentUser.email };
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/post-energy`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!response.ok) { throw new Error(data.error || 'Failed to post offer.'); }
+                await populateListings();
+                closeModal('post-energy-modal');
+                showMessage('Posted!', 'Your energy offer has been posted successfully!', 'success');
+            } catch (error) { console.error('Post Energy Error:', error); showMessage('Post Failed', error.message, 'error'); }
+        }
+
+        async function buyEnergy(listingId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/buy-energy`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listing_id: listingId, user_email: currentUser.email })
+                });
+                const data = await response.json();
+                if (!response.ok) { throw new Error(data.error || 'Failed to buy energy.'); }
+                await populateListings();
+                closeModal('details-modal');
+                showMessage('Success!', data.message, 'success');
+            } catch (error) { console.error('Buy Energy Error:', error); showMessage('Purchase Failed', error.message, 'error'); }
+        }
+
+        async function deleteEnergy(listingId) {
+            if (!confirm('Are you sure you want to delete this energy listing?')) { return; }
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/delete-energy/${listingId}`, {
+                    method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_email: currentUser.email })
+                });
+                const data = await response.json();
+                if (!response.ok) { throw new Error(data.error || 'Failed to delete listing.'); }
+                await populateListings();
+                closeModal('details-modal');
+                showMessage('Success!', data.message, 'success');
+            } catch (error) { console.error('Delete Energy Error:', error); showMessage('Delete Failed', error.message, 'error'); }
+        }
+
+        async function fetchMyEnergy() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/my-energy`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_email: currentUser.email })
+                });
+                if (!response.ok) throw new Error('Could not fetch your purchased energy.');
+                const myEnergy = await response.json();
+                const listingsContainer = document.getElementById('my-energy-listings');
+                listingsContainer.innerHTML = '';
+                if (myEnergy.length === 0) { listingsContainer.innerHTML = '<p class="text-gray-400 col-span-3 text-center">You have not purchased any energy yet.</p>'; return; }
+                myEnergy.forEach(item => {
+                    const icon = item.type.toLowerCase() === 'solar' ? 'sun' : 'wind';
+                    const color = item.type.toLowerCase() === 'solar' ? 'yellow-400' : 'blue-400';
+                    const card = `<div class="glassmorphism rounded-xl p-6"><div class="flex items-center mb-4"><div class="p-3 rounded-full bg-gray-800"><i data-lucide="${icon}" class="h-8 w-8 text-${color}"></i></div><div class="ml-4"><h3 class="text-xl font-bold text-white">From: ${item.producer}</h3><p class="text-sm text-gray-400">${item.type} Energy</p></div></div><div><div class="flex justify-between items-baseline mb-1"><span class="text-gray-400">Amount:</span><span class="text-2xl font-bold text-white">${item.amount} <span class="text-base font-normal text-gray-400">kWh</span></span></div><div class="flex justify-between items-baseline"><span class="text-gray-400">Total Cost:</span><span class="text-2xl font-bold text-green-400">$${item.cost.toFixed(2)}</span></div></div></div>`;
+                    listingsContainer.innerHTML += card;
+                });
+                lucide.createIcons();
+            } catch (error) { console.error('Fetch My Energy Error:', error); showMessage('Error', 'Could not load your purchased energy.', 'error'); }
+        }
+
+        // --- 3D BACKGROUND ---
+        let scene, camera, renderer, particles;
+        function init3D() {
+            const canvas = document.getElementById('bg-canvas');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            const particleCount = 5000;
+            const positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i++) { positions[i] = (Math.random() - 0.5) * 10; }
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const material = new THREE.PointsMaterial({ color: 0x00c4ff, size: 0.015, transparent: true, blending: THREE.AdditiveBlending });
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+            camera.position.z = 5;
+        }
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            particles.rotation.x += 0.0001;
+            particles.rotation.y += 0.0002;
+            renderer.render(scene, camera);
+        }
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize, false);
+
+        // --- INITIAL SETUP ---
+        window.onload = () => {
+             switchAuthTab('signup');
+             init3D();
+             animate3D();
+        };
+    </script>
+</body>
+</html>
